@@ -1,0 +1,35 @@
+version: 0.2
+env:
+  variables:
+    AWS_DEFAULT_REGION: "eu-west-1"
+    IMAGE_TAG: "latest"
+phases:
+  install:
+    runtime-versions:
+      java: openjdk11
+  pre_build:
+    commands:
+      - build_name=$(echo $CODEBUILD_BUILD_ID | cut -d':' -f1)
+      - build_id=$(echo $CODEBUILD_BUILD_ID | cut -d':' -f2)
+      - link=$(echo "https://$AWS_DEFAULT_REGION.console.aws.amazon.com/codesuite/codebuild/projects/$build_name/build/$build_name%3A$build_id")
+      - aws codecommit post-comment-for-pull-request --pull-request-id $PULL_REQUEST_ID --repository-name $REPOSITORY_NAME --before-commit-id $DESTINATION_COMMIT --after-commit-id $SOURCE_COMMIT --content "Codebuild link $link"
+      - git checkout $SOURCE_COMMIT
+  build:
+    commands:
+      - ###Run maven###
+      - result=${mvn clean install | grep '\[INFO\] BUILD' | sed 's/^\[INFO\] BUILD //g' }
+  post_build:
+    commands:
+      - |
+        if [ $result = "SUCCESS" ]; then
+          content=$(echo "Build Succesful");
+          aws codecommit update-pull-request-approval-state --pull-request-id $PULL_REQUEST_ID --approval-state APPROVE --revision-id $REVISION_ID;
+        elif [ $quality_status = "FAILURE" ]; then
+          content=$(echo "Build Failed. Please review build logs");
+        else
+          content="An unexpected error occurred while building application";
+        fi
+      - aws codecommit post-comment-for-pull-request --pull-request-id $PULL_REQUEST_ID --repository-name $REPOSITORY_NAME --before-commit-id $DESTINATION_COMMIT --after-commit-id $SOURCE_COMMIT --content "$content"
+cache:
+  paths:
+    - '/root/.m2/**/*'
