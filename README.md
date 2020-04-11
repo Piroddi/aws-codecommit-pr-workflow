@@ -3,5 +3,5 @@ A cicd workflow, to trigger codebuild, when the creation or change of a codecomm
 
 The following values in deployment folder need to be updated in order to run terraform:
 
-<<ACCOUNT NO>>
-<<REGION>>
+'<<ACCOUNT NO>>'
+'<<REGION>>'
